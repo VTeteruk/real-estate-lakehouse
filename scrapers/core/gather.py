@@ -40,9 +40,12 @@ class Gather:
         for (property_type, transaction_type), items in groups.items():
             payload = [asdict(item) for item in items]
             path = (
-                f"bronze/{self.source}/{property_type}/{transaction_type}"
-                f"/{date.today().isoformat()}/listings.json"
+                f"/Volumes/real_estate_elt/default/bronze_volume/{self.source}"
+                f"/{property_type}/{transaction_type}/{date.today().isoformat()}/listings.json"
             )
-            # TODO: push to Azure
-            
+
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+
             logger.info(f"Pushed {len(items)} listings to {path}")
