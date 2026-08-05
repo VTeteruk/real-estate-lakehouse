@@ -1,0 +1,15 @@
+{
+	"name": "dfrealestateelt",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "swedencentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "8d9bf9fe-b7f7-4b26-b16c-b19e7aa9efb4",
+		"tenantId": "1c9f27ef-fee6-45f4-9a64-255a8c8e25a5"
+	}
+}
