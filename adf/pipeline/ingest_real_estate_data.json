@@ -1,0 +1,228 @@
+{
+	"name": "ingest_real_estate_data",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy from rapidAPI to Blob",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "RestSource",
+						"httpRequestTimeout": "00:01:40",
+						"requestInterval": "00.00:00:00.010",
+						"requestMethod": "GET",
+						"paginationRules": {
+							"supportRFC5988": "true"
+						}
+					},
+					"sink": {
+						"type": "JsonSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "JsonWriteSettings"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "ds_rapid_api",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ds_json_gen2",
+						"type": "DatasetReference",
+						"parameters": {
+							"file_name": {
+								"value": "@concat(formatDateTime(utcNow(),'yyyy-MM-dd'), '/listings.json')",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "DataBricks Run Scrapers Serverless hook",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "GetDatabricksToken",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"headers": {
+						"Authorization": {
+							"value": "@concat('Bearer ', activity('GetDatabricksToken').output.value)",
+							"type": "Expression"
+						},
+						"Content-Type": "application/json"
+					},
+					"url": "https://adb-7405609768777013.13.azuredatabricks.net/api/2.1/jobs/runs/submit",
+					"body": {
+						"run_name": "trigger_scrapers",
+						"tasks": [
+							{
+								"task_key": "run_scrapers",
+								"notebook_task": {
+									"notebook_path": "/Users/vladyslav.teteruk@student.tuke.sk/real-estate-lakehouse/scrapers/run_scrapers"
+								}
+							}
+						]
+					}
+				}
+			},
+			{
+				"name": "GetDatabricksToken",
+				"type": "WebActivity",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "GET",
+					"url": "https://kvrealestateelt.vault.azure.net/secrets/databricks-token?api-version=7.4",
+					"authentication": {
+						"type": "MSI",
+						"resource": "https://vault.azure.net"
+					}
+				}
+			},
+			{
+				"name": "Databricks Run ETL Job",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "Copy from rapidAPI to Blob",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Until Scrapers were successful",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"headers": {
+						"Authorization": {
+							"value": "@concat('Bearer ', activity('GetDatabricksToken').output.value)",
+							"type": "Expression"
+						}
+					},
+					"url": "https://adb-7405609768777013.13.azuredatabricks.net/api/2.1/jobs/run-now",
+					"body": {
+						"job_id": 923078781778005
+					}
+				}
+			},
+			{
+				"name": "Until Scrapers were successful",
+				"type": "Until",
+				"dependsOn": [
+					{
+						"activity": "DataBricks Run Scrapers Serverless hook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Check notebook status').output.state.life_cycle_state, 'TERMINATED')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Check notebook status",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"method": "GET",
+								"headers": {
+									"Authorization": "@concat('Bearer ', activity('GetDatabricksToken').output.value)"
+								},
+								"url": {
+									"value": "@concat('https://adb-7405609768777013.13.azuredatabricks.net/api/2.1/jobs/runs/get?run_id=', string(activity('DataBricks Run Scrapers Serverless hook').output.run_id))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Wait 30 seconds",
+							"type": "Wait",
+							"dependsOn": [
+								{
+									"activity": "Check notebook status",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 30
+							}
+						}
+					],
+					"timeout": "0.12:00:00"
+				}
+			}
+		],
+		"folder": {
+			"name": "data_ingestion"
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-08-05T08:03:19Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

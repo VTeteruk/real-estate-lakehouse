@@ -1,0 +1,19 @@
+{
+	"name": "ds_rapid_api",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_rapid_api",
+			"type": "LinkedServiceReference"
+		},
+		"folder": {
+			"name": "data_ingestion"
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"typeProperties": {
+			"relativeUrl": "/search/forrent/coordinates?latitude=29.27052&longitude=-95.74991&radius=30&limit=200"
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

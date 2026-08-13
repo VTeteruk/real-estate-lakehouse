@@ -1,0 +1,27 @@
+{
+	"name": "ls_rapid_api",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "RestService",
+		"typeProperties": {
+			"url": "https://realtor16.p.rapidapi.com",
+			"enableServerCertificateValidation": true,
+			"authenticationType": "Anonymous",
+			"authHeaders": {
+				"x-rapidapi-host": {
+					"type": "SecureString",
+					"value": "**********"
+				},
+				"x-rapidapi-key": {
+					"type": "AzureKeyVaultSecret",
+					"store": {
+						"referenceName": "ds_key_vault",
+						"type": "LinkedServiceReference"
+					},
+					"secretName": "rapidapi-key"
+				}
+			}
+		}
+	}
+}
