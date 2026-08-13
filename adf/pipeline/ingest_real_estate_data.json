@@ -122,13 +122,13 @@
 				"type": "WebActivity",
 				"dependsOn": [
 					{
-						"activity": "DataBricks Run Scrapers Serverless hook",
+						"activity": "Copy from rapidAPI to Blob",
 						"dependencyConditions": [
 							"Succeeded"
 						]
 					},
 					{
-						"activity": "Copy from rapidAPI to Blob",
+						"activity": "Until Scrapers were successful",
 						"dependencyConditions": [
 							"Succeeded"
 						]
@@ -154,6 +154,67 @@
 					"body": {
 						"job_id": 923078781778005
 					}
+				}
+			},
+			{
+				"name": "Until Scrapers were successful",
+				"type": "Until",
+				"dependsOn": [
+					{
+						"activity": "DataBricks Run Scrapers Serverless hook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Check notebook status').output.state.life_cycle_state, 'TERMINATED')",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Check notebook status",
+							"type": "WebActivity",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"method": "GET",
+								"headers": {
+									"Authorization": "@concat('Bearer ', activity('GetDatabricksToken').output.value)"
+								},
+								"url": {
+									"value": "@concat('https://adb-7405609768777013.13.azuredatabricks.net/api/2.1/jobs/runs/get?run_id=', string(activity('DataBricks Run Scrapers Serverless hook').output.run_id))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Wait 30 seconds",
+							"type": "Wait",
+							"dependsOn": [
+								{
+									"activity": "Check notebook status",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"waitTimeInSeconds": 30
+							}
+						}
+					],
+					"timeout": "0.12:00:00"
 				}
 			}
 		],
