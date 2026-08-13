@@ -116,6 +116,45 @@
 						"resource": "https://vault.azure.net"
 					}
 				}
+			},
+			{
+				"name": "Databricks Run ETL Job",
+				"type": "WebActivity",
+				"dependsOn": [
+					{
+						"activity": "DataBricks Run Scrapers Serverless hook",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Copy from rapidAPI to Blob",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"method": "POST",
+					"headers": {
+						"Authorization": {
+							"value": "@concat('Bearer ', activity('GetDatabricksToken').output.value)",
+							"type": "Expression"
+						}
+					},
+					"url": "https://adb-7405609768777013.13.azuredatabricks.net/api/2.1/jobs/run-now",
+					"body": {
+						"job_id": 923078781778005
+					}
+				}
 			}
 		],
 		"folder": {
